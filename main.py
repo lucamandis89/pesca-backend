@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-import requests
 import os
 
 app = FastAPI()
@@ -19,33 +18,76 @@ def test():
     return {"status": "working"}
 
 # -------------------------
+# ALGORITMO PESCA PRO
+# -------------------------
+def calculate_score(wave: float, wind: float, tide: float, moon: float):
+
+    score = 100
+
+    # 🌊 Onde
+    if wave > 80:
+        score -= 25
+    elif wave > 60:
+        score -= 10
+    elif wave < 30:
+        score += 5
+
+    # 💨 Vento
+    if wind > 70:
+        score -= 20
+    elif wind > 50:
+        score -= 10
+    elif wind < 20:
+        score += 5
+
+    # 🌊 Maree
+    if tide > 70:
+        score += 10
+    elif tide < 30:
+        score -= 15
+
+    # 🌙 Luna
+    if 40 <= moon <= 70:
+        score += 10
+    else:
+        score -= 5
+
+    return max(0, min(100, score))
+
+
+# -------------------------
 # FISHING ENDPOINT
 # -------------------------
 @app.get("/fishing")
 def fishing(lat: float, lon: float):
 
-    # 🌊 MOCK / PLACEHOLDER (mantieni tua logica reale qui)
-    wave_score = 70
-    wind_score = 60
-    tide_score = 80
-    moon_score = 65
+    # 🌊 DATI MOCK (poi li colleghiamo API reali)
+    wave = 55
+    wind = 40
+    tide = 65
+    moon = 50
 
     # 🎯 SCORE FINALE
-    score = (wave_score + wind_score + tide_score + moon_score) / 4
+    fishing_score = calculate_score(wave, wind, tide, moon)
 
     return {
-        "location": {"lat": lat, "lon": lon},
-        "scores": {
-            "wave": wave_score,
-            "wind": wind_score,
-            "tide": tide_score,
-            "moon": moon_score
+        "location": {
+            "lat": lat,
+            "lon": lon
         },
-        "fishing_score": round(score, 2)
+        "environment": {
+            "wave": wave,
+            "wind": wind,
+            "tide": tide,
+            "moon": moon
+        },
+        "fishing_score": fishing_score,
+        "status": "calculated"
     }
 
+
 # -------------------------
-# RENDER COMPATIBILITY
+# RENDER ENTRY POINT
 # -------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
