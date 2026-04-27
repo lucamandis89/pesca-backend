@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-import os
 import requests
 from datetime import datetime
+import os
 
 app = FastAPI()
 
@@ -12,7 +12,7 @@ app = FastAPI()
 def home():
     return {
         "status": "ok",
-        "message": "Pesca API reale online"
+        "message": "Pesca API attiva"
     }
 
 # -------------------------
@@ -25,110 +25,97 @@ def test():
     }
 
 # -------------------------
-# 🌙 LUNA REALE (semplice ma stabile)
+# 🌙 LUNA (semplice e stabile)
 # -------------------------
-def get_moon_phase():
+def get_moon():
     now = datetime.utcnow()
-    day = now.day
-    return (day % 29) / 29 * 100
+    return (now.day % 29) / 29 * 100
 
 
 # -------------------------
-# 🌊 DATI REALI METEO (Open-Meteo)
+# 🌬️ METEO SICURO (Open-Meteo)
 # -------------------------
-def get_weather(lat, lon):
-
+def get_wind(lat, lon):
     try:
-        url = (
-            f"https://api.open-meteo.com/v1/forecast"
-            f"?latitude={lat}&longitude={lon}"
-            f"&current_weather=true"
-            f"&hourly=wind_speed_10m,wave_height"
-        )
-
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
         r = requests.get(url, timeout=5)
         data = r.json()
-
-        wind = data["current_weather"]["windspeed"]
-
-        wave = 1.0
-        try:
-            wave = data["hourly"]["wave_height"][0]
-        except:
-            wave = 1.0
-
-        return wave, wind
-
+        return data.get("current_weather", {}).get("windspeed", 10)
     except:
-        # fallback sicuro se API non risponde
-        return 1.0, 10.0
+        return 10
 
 
 # -------------------------
-# 🎯 SCORE PESCA REALISTICO
+# 🎯 SCORE PESCA
 # -------------------------
 def calculate_score(wave, wind, tide, moon):
 
     score = 100
 
-    # 🌊 onde
-    if wave > 2.5:
-        score -= 30
-    elif wave > 1.5:
-        score -= 15
-
-    # 💨 vento
+    # vento
     if wind > 25:
         score -= 25
     elif wind > 15:
         score -= 10
 
-    # 🌊 maree (simulazione stabile)
+    # onde
+    if wave > 2:
+        score -= 20
+
+    # maree
     if tide > 70:
         score += 10
     elif tide < 30:
-        score -= 15
-
-    # 🌙 luna
-    if 40 <= moon <= 70:
-        score += 15
-    else:
         score -= 10
+
+    # luna
+    if 40 <= moon <= 70:
+        score += 10
+    else:
+        score -= 5
 
     return max(0, min(100, score))
 
 
 # -------------------------
-# 🎣 FISHING ENDPOINT (REAL + SAFE)
+# 🎣 FISHING ENDPOINT STABILE
 # -------------------------
 @app.get("/fishing")
 def fishing(lat: float, lon: float):
 
-    wave, wind = get_weather(lat, lon)
+    try:
+        wind = get_wind(lat, lon)
 
-    tide = 60  # placeholder realistico (poi miglioriamo con API maree NOAA)
-    moon = get_moon_phase()
+        wave = 1.0   # fallback stabile (onde reali richiedono API premium)
+        tide = 60    # placeholder realistico
+        moon = get_moon()
 
-    score = calculate_score(wave, wind, tide, moon)
+        score = calculate_score(wave, wind, tide, moon)
 
-    return {
-        "location": {
-            "lat": lat,
-            "lon": lon
-        },
-        "environment": {
-            "wave": round(wave, 2),
-            "wind": round(wind, 2),
-            "tide": tide,
-            "moon": round(moon, 2)
-        },
-        "fishing_score": score,
-        "status": "REAL_MODE_ACTIVE"
-    }
+        return {
+            "location": {
+                "lat": lat,
+                "lon": lon
+            },
+            "environment": {
+                "wind": wind,
+                "wave": wave,
+                "tide": tide,
+                "moon": moon
+            },
+            "fishing_score": score,
+            "status": "STABLE_OK"
+        }
+
+    except Exception as e:
+        return {
+            "status": "error_handled",
+            "message": str(e)
+        }
 
 
 # -------------------------
-# RENDER ENTRY POINT
+# RENDER START
 # -------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
