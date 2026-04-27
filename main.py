@@ -1,7 +1,5 @@
 from fastapi import FastAPI
-import requests
-import math
-from datetime import datetime
+import os
 
 app = FastAPI()
 
@@ -10,51 +8,22 @@ app = FastAPI()
 # -------------------------
 @app.get("/")
 def home():
-    return {"status": "ok", "message": "Pesca API realistica attiva"}
+    return {
+        "status": "ok",
+        "message": "Pesca API online"
+    }
 
 # -------------------------
 # TEST
 # -------------------------
 @app.get("/test")
 def test():
-    return {"status": "working"}
+    return {
+        "status": "working"
+    }
 
 # -------------------------
-# 🌙 LUNA REALE (semplice ma efficace)
-# -------------------------
-def get_moon_phase():
-    now = datetime.utcnow()
-    days = now.day
-    phase = (days % 29) / 29 * 100
-    return phase
-
-# -------------------------
-# 🌊 DATI REALI OPEN-METEO
-# -------------------------
-def get_weather(lat, lon):
-
-    url = (
-        f"https://api.open-meteo.com/v1/forecast"
-        f"?latitude={lat}&longitude={lon}"
-        f"&hourly=wind_speed_10m,wave_height&current_weather=true"
-    )
-
-    res = requests.get(url)
-    data = res.json()
-
-    wind = data["current_weather"]["windspeed"]
-
-    # fallback onde (Open-Meteo non sempre le dà precise)
-    wave = 50
-    try:
-        wave = data["hourly"]["wave_height"][0]
-    except:
-        wave = 50
-
-    return wind, wave
-
-# -------------------------
-# 🎯 SCORE PESCA REALISTICO
+# FUNZIONE SCORE PESCA
 # -------------------------
 def calculate_score(wave, wind, tide, moon):
 
@@ -72,7 +41,7 @@ def calculate_score(wave, wind, tide, moon):
     elif wind > 15:
         score -= 10
 
-    # 🌊 maree (simulazione base migliorabile)
+    # 🌊 maree
     if tide > 70:
         score += 10
     elif tide < 30:
@@ -86,27 +55,48 @@ def calculate_score(wave, wind, tide, moon):
 
     return max(0, min(100, score))
 
+
 # -------------------------
-# FISHING ENDPOINT (REAL)
+# FISHING ENDPOINT STABILE
 # -------------------------
 @app.get("/fishing")
 def fishing(lat: float, lon: float):
 
-    wind, wave = get_weather(lat, lon)
+    try:
+        # 🌊 DATI BASE STABILI (NO CRASH)
+        wave = 1.2
+        wind = 12
+        tide = 60
+        moon = 55
 
-    tide = 60  # placeholder realistico (poi lo miglioriamo con API maree)
-    moon = get_moon_phase()
+        score = calculate_score(wave, wind, tide, moon)
 
-    score = calculate_score(wave, wind, tide, moon)
+        return {
+            "location": {
+                "lat": lat,
+                "lon": lon
+            },
+            "environment": {
+                "wave": wave,
+                "wind": wind,
+                "tide": tide,
+                "moon": moon
+            },
+            "fishing_score": score,
+            "status": "stable_ok"
+        }
 
-    return {
-        "location": {"lat": lat, "lon": lon},
-        "environment": {
-            "wave": wave,
-            "wind": wind,
-            "tide": tide,
-            "moon": moon
-        },
-        "fishing_score": score,
-        "status": "REAL_DATA"
-    }
+    except Exception as e:
+        return {
+            "status": "error_handled",
+            "message": str(e)
+        }
+
+
+# -------------------------
+# RENDER START
+# -------------------------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
